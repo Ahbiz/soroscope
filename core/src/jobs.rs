@@ -1858,4 +1858,17 @@ mod tests {
             "cleanup task must exit promptly upon shutdown signal"
         );
     }
+
+    #[tokio::test]
+    async fn queue_close_gracefully_terminates_pool() {
+        let pool = sqlite_pool_with_jobs_table().await;
+        let queue = test_queue(pool.clone());
+        insert_job(&pool, &JobType::Analyze, "QUEUED", &analyze_payload("CABC")).await;
+
+        let jobs = queue.list(&JobListFilter::default(), 10, 0).await.unwrap();
+        assert_eq!(jobs.len(), 1);
+
+        // Gracefully close without hanging
+        queue.close().await;
+    }
 }
